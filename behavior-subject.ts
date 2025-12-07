@@ -1,34 +1,41 @@
 import type { Subject } from "@xan/subject";
 import { isObserver, type Observer } from "@xan/observer";
-import { ReplaySubject } from "@xan/replay-subject";
 import type { BehaviorSubjectConstructor } from "./behavior-subject-constructor.ts";
+import { ReplaySubject } from "@xan/replay-subject";
 
 /**
  * Object type that acts as a variant of [`Subject`](https://jsr.io/@xan/subject/doc/~/Subject).
  */
-export type BehaviorSubject<Value = unknown> = Subject<Value>;
+export type BehaviorSubject<Value = unknown> =
+  & Subject<Value>
+  & Readonly<Record<"value", Value>>;
 
-// The main reason this JSDoc exists, is to satisfy the JSR score. In reality,
-// the JSDoc on the above type is enough for the DX on both symbols.
-/**
- * @class
- */
 export const BehaviorSubject: BehaviorSubjectConstructor = class<Value> {
-  readonly [Symbol.toStringTag] = "BehaviorSubject"; // Use a string literal so it does not get minified.
+  readonly [Symbol.toStringTag] = "BehaviorSubject";
   readonly #subject = new ReplaySubject<Value>(1);
   readonly signal = this.#subject.signal;
+  #value: Value;
 
   constructor(value: Value) {
     if (arguments.length === 0) {
       throw new TypeError("1 argument required but 0 present");
     }
     Object.freeze(this);
-    this.#subject.next(value);
+    this.#subject.next(this.#value = value);
+  }
+
+  get value(): Value {
+    if (this instanceof BehaviorSubject) return this.#value;
+    throw new TypeError("'this' is not instanceof 'BehaviorSubject'");
   }
 
   next(value: Value): void {
-    if (this instanceof BehaviorSubject) this.#subject.next(value);
-    else throw new TypeError("'this' is not instanceof 'BehaviorSubject'");
+    if (!(this instanceof BehaviorSubject)) {
+      throw new TypeError("'this' is not instanceof 'BehaviorSubject'");
+    }
+    this.#subject.next(
+      this.signal.aborted ? this.#value : (this.#value = value),
+    );
   }
 
   return(): void {
