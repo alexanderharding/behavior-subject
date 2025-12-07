@@ -1,7 +1,52 @@
 import { BehaviorSubject } from "./behavior-subject.ts";
 import { Observable } from "@xan/observable";
 import { Observer } from "@xan/observer";
-import { assertEquals, assertThrows } from "@std/assert";
+import { assertEquals, assertStrictEquals, assertThrows } from "@std/assert";
+
+Deno.test("BehaviorSubject.value should return current value", () => {
+  // Arrange
+  const subject = new BehaviorSubject("initial");
+
+  // Act
+  const { value: value1 } = subject;
+  subject.next("second");
+  const { value: value2 } = subject;
+
+  // Assert
+  assertStrictEquals(value1, "initial");
+  assertStrictEquals(value2, "second");
+});
+
+Deno.test("BehaviorSubject.value should not change after throw", () => {
+  // Arrange
+  const subject = new BehaviorSubject("initial");
+  subject.subscribe(new Observer({ throw: () => {} })); // Silence the error
+
+  // Act
+  const { value: value1 } = subject;
+  subject.throw(new Error("test error"));
+  subject.next("second");
+  const { value: value2 } = subject;
+
+  // Assert
+  assertStrictEquals(value1, "initial");
+  assertStrictEquals(value2, "initial");
+});
+
+Deno.test("BehaviorSubject.value should not change after return", () => {
+  // Arrange
+  const subject = new BehaviorSubject("initial");
+
+  // Act
+  const { value: value1 } = subject;
+  subject.return();
+  subject.next("second");
+  const { value: value2 } = subject;
+
+  // Assert
+  assertStrictEquals(value1, "initial");
+  assertStrictEquals(value2, "initial");
+});
 
 Deno.test(
   "BehaviorSubject.constructor should not throw when creating with more than one argument",
@@ -237,6 +282,13 @@ Deno.test(
   () => {
     // Arrange
     const subject = new BehaviorSubject(2);
+
+    assertThrows(
+      () => BehaviorSubject.prototype.value,
+      TypeError,
+      "'this' is not instanceof 'BehaviorSubject'",
+    );
+
     assertThrows(
       () => subject.next.call(null, 1),
       TypeError,
